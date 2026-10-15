@@ -11,6 +11,7 @@ Iwe is a low-data, messaging-first WAEC Mathematics learning companion for learn
 - A responsive learner dashboard with progress, audio playback, reminders, and a private-circle demo.
 - Private-circle APIs with expiring, limited-use invitation links.
 - Telegram and WhatsApp webhooks, an OpenAI explanation fallback, a reminder worker, and Docker deployment files.
+- Provider settings encrypted in PostgreSQL and cached as an encrypted snapshot in Redis.
 
 Read [docs/architecture.md](docs/architecture.md) for data-flow boundaries, [docs/integrations.md](docs/integrations.md) for channel setup, and [docs/content.md](docs/content.md) before extending lessons.
 
@@ -28,9 +29,9 @@ Read [docs/architecture.md](docs/architecture.md) for data-flow boundaries, [doc
 cp .env.example .env
 ```
 
-Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `APP_URL`. For local development, `BETTER_AUTH_URL` and `APP_URL` should match the URL printed by `npm run dev`—for example, `http://localhost:3000`.
+Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `APP_URL`, and `CONFIG_ENCRYPTION_KEY`. For local development, `BETTER_AUTH_URL` and `APP_URL` should match the URL printed by `npm run dev`—for example, `http://localhost:3000`.
 
-Create a secure secret with `openssl rand -base64 32`.
+Create separate secure values with `openssl rand -base64 32` for `BETTER_AUTH_SECRET` and `CONFIG_ENCRYPTION_KEY`. Set `CONFIG_ADMIN_EMAILS` to the email address allowed to update provider settings through the protected API.
 
 ### 2. Start a database
 
@@ -54,9 +55,10 @@ postgresql://iwe:your-postgres-password@localhost:5432/iwe?schema=public
 npm install
 npm run db:push
 npm run db:seed
+npm run configuration:bootstrap
 ```
 
-`db:push` is intentionally used for this competition prototype. Use versioned migrations before treating the deployment as long-lived production infrastructure.
+`db:push` is intentionally used for this competition prototype. `configuration:bootstrap` copies non-empty provider values from `.env` into encrypted database settings only when that key is not already stored; it never overwrites a database value. Use versioned migrations before treating the deployment as long-lived production infrastructure.
 
 ### 4. Run the application
 
@@ -75,11 +77,12 @@ Open the printed local URL. Use `/dashboard` for the interactive visual demo, or
 | `npm run test` | Run unit tests. |
 | `npm run db:push` | Synchronize PostgreSQL with Prisma schema. |
 | `npm run db:seed` | Add the 12 Iwe lesson bites and questions. |
+| `npm run configuration:bootstrap` | Copy initial provider values from `.env` into encrypted database settings. |
 | `npm run worker` | Run one reminder-worker pass. |
 
 ## Configure chat channels
 
-No real chat message is sent until the relevant environment values are present.
+The application reads provider settings from PostgreSQL, with an encrypted Redis cache in production. Environment variables are bootstrap inputs only; after setting them, run `npm run configuration:bootstrap`. The protected `GET`/`PUT /api/admin/configuration` endpoint lets an email in `CONFIG_ADMIN_EMAILS` inspect configured state and replace one value. It never returns stored secrets.
 
 - **Telegram:** set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, then register `https://your-domain/api/webhooks/telegram` as the bot webhook with the same secret token. `/start`, `/learn`, and `/progress` are supported.
 - **WhatsApp:** set `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, and `WHATSAPP_APP_SECRET`. Subscribe Meta to `https://your-domain/api/webhooks/whatsapp`. Set `WHATSAPP_REMINDER_TEMPLATE` to an approved template name for scheduled reminders.
@@ -97,6 +100,7 @@ See [docs/integrations.md](docs/integrations.md) for the webhook checklist and s
    docker compose up -d --build
    docker compose exec app npx prisma db push
    docker compose exec app npm run db:seed
+   docker compose exec app npm run configuration:bootstrap
    ```
 
 4. Check `https://iwe.cradlesoft.tech/api/health`, then configure Telegram and WhatsApp webhooks.

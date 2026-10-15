@@ -18,6 +18,14 @@ enum DeliveryStatus {
   FAILED
 }
 
+model ApplicationSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  ciphertext String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Learner {
   id              String              @id @default(cuid())
   userId          String              @unique

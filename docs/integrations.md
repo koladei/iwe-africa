@@ -2,6 +2,8 @@
 
 ## Telegram
 
+Before configuring a provider, set the initial variable in `.env` and run `npm run configuration:bootstrap`. Once a value is stored, rotate it through the protected administrator configuration API rather than committing or copying it into source.
+
 1. Create a bot through BotFather and set `TELEGRAM_BOT_TOKEN`.
 2. Generate a random `TELEGRAM_WEBHOOK_SECRET`.
 3. Configure `https://iwe.cradlesoft.tech/api/webhooks/telegram` as the webhook and supply the same secret token.

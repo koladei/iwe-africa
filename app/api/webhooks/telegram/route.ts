@@ -1,7 +1,8 @@
 import { telegramProvider, todayLessonMessage } from "@/lib/messaging";
+import { getConfiguration } from "@/lib/configuration";
 
 export async function POST(request: Request) {
-  const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const configuredSecret = await getConfiguration("TELEGRAM_WEBHOOK_SECRET");
   const receivedSecret = request.headers.get("x-telegram-bot-api-secret-token");
   if (configuredSecret && receivedSecret !== configuredSecret) return new Response("Unauthorized", { status: 401 });
   const messages = telegramProvider.parseInboundMessage(await request.json());

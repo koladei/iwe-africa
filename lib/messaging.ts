@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { seedLessons } from "@/lib/lessons";
+import { getConfiguration } from "@/lib/configuration";
 
 export type InboundMessage = { channel: "TELEGRAM" | "WHATSAPP"; senderId: string; text: string; replyId?: string };
 export type OutboundMessage = { recipientId: string; text: string; buttons?: { id: string; title: string }[] };
@@ -13,7 +14,7 @@ export interface MessagingProvider {
 }
 
 async function telegramSend(message: OutboundMessage) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = await getConfiguration("TELEGRAM_BOT_TOKEN");
   if (!token) return null;
   const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST", headers: { "content-type": "application/json" },
@@ -37,8 +38,8 @@ export const telegramProvider: MessagingProvider = {
 };
 
 async function whatsAppSend(message: OutboundMessage) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = await getConfiguration("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = await getConfiguration("WHATSAPP_PHONE_NUMBER_ID");
   if (!token || !phoneNumberId) return null;
   const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
     method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -50,9 +51,9 @@ async function whatsAppSend(message: OutboundMessage) {
 }
 
 async function whatsAppReminder(message: OutboundMessage) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const template = process.env.WHATSAPP_REMINDER_TEMPLATE;
+  const token = await getConfiguration("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = await getConfiguration("WHATSAPP_PHONE_NUMBER_ID");
+  const template = await getConfiguration("WHATSAPP_REMINDER_TEMPLATE");
   if (!token || !phoneNumberId) return null;
   if (!template) return whatsAppSend(message);
   const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
@@ -76,8 +77,8 @@ export const whatsAppProvider: MessagingProvider = {
   },
 };
 
-export function validWhatsAppSignature(rawBody: string, signature: string | null) {
-  const secret = process.env.WHATSAPP_APP_SECRET;
+export async function validWhatsAppSignature(rawBody: string, signature: string | null) {
+  const secret = await getConfiguration("WHATSAPP_APP_SECRET");
   if (!secret || !signature) return false;
   const expected = `sha256=${crypto.createHmac("sha256", secret).update(rawBody).digest("hex")}`;
   const received = Buffer.from(signature);

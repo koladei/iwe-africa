@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:push": "prisma db push",
+    "configuration:bootstrap": "tsx scripts/bootstrap-configuration.ts",
     "worker": "tsx worker/index.ts"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "pg": "^8.16.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "redis": "^6.3.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

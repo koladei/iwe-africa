@@ -10,6 +10,7 @@ Use this skill for Telegram, WhatsApp Cloud API, message-provider adapters, remi
 ## Integration contract
 
 - Keep provider-specific code behind the `MessagingProvider` interface in `lib/messaging.ts`. Preserve the same lesson/reminder semantics across channels.
+- Resolve OpenAI, Telegram, and WhatsApp settings through `lib/configuration.ts`, never directly from provider environment variables. Environment variables seed initial values via `npm run configuration:bootstrap` and must not overwrite database values.
 - Telegram webhooks validate `x-telegram-bot-api-secret-token` when configured. WhatsApp POST requests validate the HMAC signature against the unparsed request body; GET handles Meta verification.
 - Scheduled WhatsApp reminders use an approved template when `WHATSAPP_REMINDER_TEMPLATE` is configured. Do not assume arbitrary proactive messages are permitted.
 - Messaging payloads are text-first and compact. Do not transmit quiz answers, scores, learner history, or other learner data to circle members.

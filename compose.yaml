@@ -5,9 +5,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://iwe:${POSTGRES_PASSWORD:-change-this-before-production}@postgres:5432/iwe?schema=public
+      REDIS_URL: redis://redis:6379
   worker:
     build:
       context: .
@@ -16,9 +19,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://iwe:${POSTGRES_PASSWORD:-change-this-before-production}@postgres:5432/iwe?schema=public
+      REDIS_URL: redis://redis:6379
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
   postgres:
     image: postgres:16-alpine
     environment:

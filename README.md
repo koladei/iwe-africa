@@ -14,6 +14,7 @@ Iwe is a low-data, messaging-first WAEC Mathematics learning companion for learn
 - Provider settings encrypted in PostgreSQL and cached as an encrypted snapshot in Redis.
 
 Read [docs/architecture.md](docs/architecture.md) for data-flow boundaries, [docs/integrations.md](docs/integrations.md) for channel setup, and [docs/content.md](docs/content.md) before extending lessons.
+The complete problem, requirements, scope, and acceptance criteria are in [spec.md](spec.md).
 
 ## Local setup
 

@@ -1,14 +1,14 @@
-const requiredForProduction = ["DATABASE_URL", "BETTER_AUTH_SECRET", "APP_URL"] as const;
+import { configurationStatus } from "@/lib/configuration";
 
-export function environmentStatus() {
+const requiredForProduction = ["DATABASE_URL", "BETTER_AUTH_SECRET", "APP_URL", "CONFIG_ENCRYPTION_KEY"] as const;
+
+export async function environmentStatus() {
   const missing = requiredForProduction.filter((name) => !process.env[name]);
+  const settings = await configurationStatus().catch(() => null);
   return {
     ok: missing.length === 0,
     missing,
-    channels: {
-      telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-      whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
-      openai: Boolean(process.env.OPENAI_API_KEY),
-    },
+    redis: Boolean(process.env.REDIS_URL),
+    settings,
   };
 }

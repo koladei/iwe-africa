@@ -1,54 +1,30 @@
 services:
-  app:
-    build: .
-    env_file: .env
-    depends_on:
-      postgres:
-        condition: service_healthy
+  iwe-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_REPO:-koladei/iwe-africa}:${IMAGE_TAG:-latest}
+    container_name: ${CONTAINER_NAME:-iwe-app}
     restart: unless-stopped
+    env_file: env/iwe.env
+    ports:
+      - "127.0.0.1:${HOST_PORT:-3000}:3000"
     environment:
-      DATABASE_URL: postgresql://iwe:${POSTGRES_PASSWORD:-change-this-before-production}@postgres:5432/iwe?schema=public
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
-    env_file: .env
-    depends_on:
-      postgres:
-        condition: service_healthy
+    image: ${DOCKER_REPO:-koladei/iwe-africa}:${IMAGE_TAG:-latest}-worker
+    container_name: ${WORKER_CONTAINER_NAME:-iwe-worker}
     restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://iwe:${POSTGRES_PASSWORD:-change-this-before-production}@postgres:5432/iwe?schema=public
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: iwe
-      POSTGRES_USER: iwe
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-before-production}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U iwe -d iwe"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      - app
-    restart: unless-stopped
-
-volumes:
-  postgres-data:
-  caddy-data:
-  caddy-config:
+    env_file: env/iwe.env

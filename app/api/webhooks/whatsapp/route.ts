@@ -1,17 +1,18 @@
 import { validWhatsAppSignature, whatsAppProvider, todayLessonMessage } from "@/lib/messaging";
+import { getConfiguration } from "@/lib/configuration";
 
-export function GET(request: Request) {
+export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  if (searchParams.get("hub.mode") === "subscribe" && searchParams.get("hub.verify_token") === process.env.WHATSAPP_VERIFY_TOKEN) return new Response(searchParams.get("hub.challenge") ?? "", { status: 200 });
+  if (searchParams.get("hub.mode") === "subscribe" && searchParams.get("hub.verify_token") === await getConfiguration("WHATSAPP_VERIFY_TOKEN")) return new Response(searchParams.get("hub.challenge") ?? "", { status: 200 });
   return new Response("Verification failed", { status: 403 });
 }
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
-  if (!validWhatsAppSignature(rawBody, request.headers.get("x-hub-signature-256"))) return new Response("Unauthorized", { status: 401 });
+  if (!await validWhatsAppSignature(rawBody, request.headers.get("x-hub-signature-256"))) return new Response("Unauthorized", { status: 401 });
   const messages = whatsAppProvider.parseInboundMessage(JSON.parse(rawBody));
   await Promise.all(messages.map(async (message) => {
-    if (["learn", "start", "/learn"].includes(message.text.toLowerCase())) await whatsAppProvider.sendLesson({ recipientId: message.senderId, text: todayLessonMessage() });
+    if (["learn", "start", "/learn"].includes(message.text.toLowerCase())) await whatsAppProvider.sendLesson({ recipientId: message.senderId, text: await todayLessonMessage() });
   }));
   return Response.json({ ok: true });
 }

@@ -18,6 +18,20 @@ enum DeliveryStatus {
   FAILED
 }
 
+enum LessonStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model ApplicationSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  ciphertext String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Learner {
   id              String              @id @default(cuid())
   userId          String              @unique
@@ -50,8 +64,88 @@ model User {
   sessions      Session[]
   accounts      Account[]
   learner       Learner?
+  roleMemberships       UserRole[]            @relation("UserRoleMembership")
+  grantedRoleMemberships UserRole[]            @relation("UserRoleGrantor")
+  directPrivileges      UserPrivilege[]       @relation("UserPrivilegeMembership")
+  grantedPrivileges     UserPrivilege[]       @relation("UserPrivilegeGrantor")
+  authorizationAudits   AuthorizationAudit[]  @relation("AuthorizationAuditActor")
+  lessonsCreated        Lesson[]              @relation("LessonCreatedBy")
+  lessonsPublished      Lesson[]              @relation("LessonPublishedBy")
+  lessonsArchived       Lesson[]              @relation("LessonArchivedBy")
 
   @@map("user")
+}
+
+model Privilege {
+  id          String          @id @default(cuid())
+  key         String          @unique
+  title       String
+  description String
+  createdAt   DateTime        @default(now())
+  roleGrants  RolePrivilege[]
+  userGrants  UserPrivilege[]
+}
+
+model Role {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  name        String          @unique
+  description String
+  isBuiltIn   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  privileges  RolePrivilege[]
+  memberships UserRole[]
+}
+
+model RolePrivilege {
+  roleId      String
+  privilegeId String
+  createdAt   DateTime  @default(now())
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  privilege   Privilege @relation(fields: [privilegeId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, privilegeId])
+}
+
+model UserRole {
+  userId      String
+  roleId      String
+  grantedById String?
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserRoleMembership", fields: [userId], references: [id], onDelete: Cascade)
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  grantedBy   User?    @relation("UserRoleGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model UserPrivilege {
+  userId      String
+  privilegeId String
+  grantedById String?
+  createdAt   DateTime  @default(now())
+  user        User      @relation("UserPrivilegeMembership", fields: [userId], references: [id], onDelete: Cascade)
+  privilege   Privilege @relation(fields: [privilegeId], references: [id], onDelete: Cascade)
+  grantedBy   User?     @relation("UserPrivilegeGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, privilegeId])
+  @@index([privilegeId])
+}
+
+model AuthorizationAudit {
+  id           String   @id @default(cuid())
+  actorId      String?
+  action       String
+  targetUserId String?
+  targetRoleId String?
+  subject      String?
+  createdAt    DateTime @default(now())
+  actor        User?    @relation("AuthorizationAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, createdAt])
+  @@index([targetRoleId, createdAt])
 }
 
 model Session {
@@ -130,12 +224,26 @@ model Lesson {
   sourceUrl   String
   audioUrl    String?
   order       Int
+  status      LessonStatus @default(DRAFT)
+  createdById String?
+  publishedById String?
+  publishedAt DateTime?
+  archivedById String?
+  archivedAt DateTime?
+  revisionOfId String?
   createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @default(now()) @updatedAt
   topic       Topic          @relation(fields: [topicId], references: [id])
   questions   Question[]
   completions LessonCompletion[]
+  createdBy   User?          @relation("LessonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  publishedBy User?          @relation("LessonPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  archivedBy  User?          @relation("LessonArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  revisionOf  Lesson?        @relation("LessonRevision", fields: [revisionOfId], references: [id], onDelete: SetNull)
+  revisions   Lesson[]       @relation("LessonRevision")
 
-  @@unique([topicId, order])
+  @@index([topicId, order])
+  @@index([status, order])
 }
 
 model Question {

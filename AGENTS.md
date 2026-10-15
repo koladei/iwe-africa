@@ -6,6 +6,7 @@ Read the project documentation before making a related change:
 - `docs/architecture.md` for data boundaries and teen-safety constraints.
 - `docs/integrations.md` for Telegram, WhatsApp, and OpenAI changes.
 - `docs/content.md` for lesson and source quality.
+- `spec.md` for the privilege catalogue, role model, and administration acceptance criteria.
 
 Reusable project skills live in `skills/`:
 
@@ -13,6 +14,14 @@ Reusable project skills live in `skills/`:
 - `skills/iwe-messaging/SKILL.md` for provider webhooks, reminders, and AI explanations.
 
 Use the relevant skill whenever the task matches it. Preserve the 13+ privacy model and never commit `.env`, provider secrets, database dumps, or learner data.
+
+## Authorization rules
+
+- Use `lib/authorization.ts` and a specific privilege check for every staff-facing API, server action, or data mutation. Never use client-side visibility, role names, or `CONFIG_ADMIN_EMAILS` directly as authorization.
+- Roles are collections of application-defined privileges. Users may have several roles and direct grants; effective access is the de-duplicated union. Do not introduce deny rules or user role fields.
+- Privilege keys are reviewed application behavior. Do not add portal-created privilege names unless matching enforcement is implemented.
+- `CONFIG_ADMIN_EMAILS` is bootstrap-only. Use `npm run authorization:bootstrap` to promote matching existing users to the protected Platform Administrator role; never demote users automatically.
+- Never place secrets, learner history, scores, answers, or provider values in authorization audit records.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -2,18 +2,20 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { seedLessons, topicOrder } from "@/lib/lessons";
+import { seedLessons, type SeedLesson } from "@/lib/lessons";
 
 type Tab = "learn" | "progress" | "circle" | "settings";
 
-export function Dashboard() {
+export function Dashboard({ lessons = seedLessons }: { lessons?: SeedLesson[] }) {
   const [tab, setTab] = useState<Tab>("learn");
   const [lessonIndex, setLessonIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [finished, setFinished] = useState(false);
   const [circle, setCircle] = useState(false);
   const [reminder, setReminder] = useState("18:00");
-  const lesson = seedLessons[lessonIndex];
+  const lesson = lessons[lessonIndex];
+  const topics = [...new Set(lessons.map((item) => item.topic))];
+  if (!lesson) return <main className="legal"><Link className="brand" href="/">iwe<span>.</span></Link><p className="eyebrow">LEARNER SPACE</p><h1>Your next lesson is being prepared.</h1><p>Check back shortly. Published learning materials appear here as soon as they are ready.</p></main>;
   const score = Object.entries(answers).filter(([questionIndex, optionIndex]) => lesson.questions[Number(questionIndex)].options[Number(optionIndex)].correct).length;
   const allAnswered = Object.keys(answers).length === lesson.questions.length;
   const completed = finished ? 1 : 0;
@@ -43,8 +45,8 @@ export function Dashboard() {
     </aside>
     <section className="dashboard-main">
       <header className="dashboard-header"><div><p className="eyebrow">MONDAY · 5-MINUTE SESSION</p><h1>{tab === "learn" ? "A little today goes a long way." : tab === "progress" ? "Your learning path" : tab === "circle" ? "Study, together—privately." : "Make Iwe yours."}</h1></div><div className="profile"><span>AM</span><div><b>Amina</b><small>WAEC Mathematics</small></div></div></header>
-      {tab === "learn" && <Learn lessonIndex={lessonIndex} lesson={lesson} answers={answers} setAnswers={setAnswers} allAnswered={allAnswered} score={score} finished={finished} complete={() => setFinished(true)} speak={speak} selectLesson={switchLesson} />}
-      {tab === "progress" && <Progress completed={completed} onLessonClick={switchLesson} />}
+      {tab === "learn" && <Learn lessons={lessons} lessonIndex={lessonIndex} lesson={lesson} answers={answers} setAnswers={setAnswers} allAnswered={allAnswered} score={score} finished={finished} complete={() => setFinished(true)} speak={speak} selectLesson={switchLesson} />}
+      {tab === "progress" && <Progress lessons={lessons} topics={topics} completed={completed} onLessonClick={switchLesson} />}
       {tab === "circle" && <Circle circle={circle} setCircle={setCircle} />}
       {tab === "settings" && <Settings reminder={reminder} setReminder={setReminder} />}
     </section>
@@ -55,11 +57,11 @@ function Nav({ label, icon, active, onClick }: { label: string; icon: string; ac
   return <button onClick={onClick} className={active ? "active" : ""}><span>{icon}</span>{label}</button>;
 }
 
-function Learn({ lesson, lessonIndex, answers, setAnswers, allAnswered, score, finished, complete, speak, selectLesson }: any) {
-  const topicLessons = useMemo(() => seedLessons.filter((entry) => entry.topic === lesson.topic), [lesson.topic]);
+function Learn({ lessons, lesson, lessonIndex, answers, setAnswers, allAnswered, score, finished, complete, speak, selectLesson }: any) {
+  const topicLessons = useMemo(() => lessons.filter((entry: SeedLesson) => entry.topic === lesson.topic), [lessons, lesson.topic]);
   return <div className="learn-grid">
     <article className="lesson-card">
-      <div className="lesson-meta"><span>{lesson.topic.toUpperCase()}</span><span>LESSON {lessonIndex + 1} OF 12</span></div>
+      <div className="lesson-meta"><span>{lesson.topic.toUpperCase()}</span><span>LESSON {lessonIndex + 1} OF {lessons.length}</span></div>
       <h2>{lesson.title}</h2><p className="concept">{lesson.bite}</p>
       <div className="lesson-tools"><button onClick={speak}>◖ Listen</button><a href={lesson.sourceUrl} target="_blank" rel="noreferrer">↗ Source: {lesson.sourceTitle}</a></div>
       <div className="checkin"><div><p className="eyebrow">CHECK YOUR UNDERSTANDING</p><h3>Three quick questions</h3></div><span>{Object.keys(answers).length}/3</span></div>
@@ -70,12 +72,12 @@ function Learn({ lesson, lessonIndex, answers, setAnswers, allAnswered, score, f
       {allAnswered && !finished && <button className="primary complete" onClick={complete}>Finish today’s bite · {score}/3 correct <span>→</span></button>}
       {finished && <div className="completion"><b>✓ You showed up today.</b><span>Lesson complete · Your streak is now 4 days.</span></div>}
     </article>
-    <aside className="lesson-rail"><div className="streak"><p>YOUR STEADY STREAK</p><strong>4</strong><span>days in a row</span><div className="week"><i className="done" /> <i className="done" /> <i className="done" /> <i className="done" /> <i /> <i /> <i /></div></div><div className="topic-list"><p className="eyebrow">KEEP LEARNING</p>{topicLessons.map((entry) => <button onClick={() => selectLesson(seedLessons.indexOf(entry))} className={entry.slug === lesson.slug ? "current" : ""} key={entry.slug}><span>{entry.slug === lesson.slug ? "●" : "○"}</span>{entry.title}</button>)}</div></aside>
+    <aside className="lesson-rail"><div className="streak"><p>YOUR STEADY STREAK</p><strong>4</strong><span>days in a row</span><div className="week"><i className="done" /> <i className="done" /> <i className="done" /> <i className="done" /> <i /> <i /> <i /></div></div><div className="topic-list"><p className="eyebrow">KEEP LEARNING</p>{topicLessons.map((entry: SeedLesson) => <button onClick={() => selectLesson(lessons.indexOf(entry))} className={entry.slug === lesson.slug ? "current" : ""} key={entry.slug}><span>{entry.slug === lesson.slug ? "●" : "○"}</span>{entry.title}</button>)}</div></aside>
   </div>;
 }
 
-function Progress({ completed, onLessonClick }: { completed: number; onLessonClick: (index: number) => void }) {
-  return <div className="progress-view"><section className="stat-grid"><Stat value={completed ? "1" : "0"} label="lessons completed" /><Stat value="4" label="day steady streak" /><Stat value="12" label="curated lesson bites" /></section><section className="library"><div><p className="eyebrow">YOUR WAEC MATHS LIBRARY</p><h2>Choose the next small step.</h2></div>{topicOrder.map((topic) => <div className="topic-row" key={topic}><h3>{topic}</h3><div>{seedLessons.filter((lesson) => lesson.topic === topic).map((lesson) => <button key={lesson.slug} onClick={() => onLessonClick(seedLessons.indexOf(lesson))}>{lesson.title}<span>→</span></button>)}</div></div>)}</section></div>;
+function Progress({ lessons, topics, completed, onLessonClick }: { lessons: SeedLesson[]; topics: string[]; completed: number; onLessonClick: (index: number) => void }) {
+  return <div className="progress-view"><section className="stat-grid"><Stat value={completed ? "1" : "0"} label="lessons completed" /><Stat value="4" label="day steady streak" /><Stat value={String(lessons.length)} label="curated lesson bites" /></section><section className="library"><div><p className="eyebrow">YOUR WAEC MATHS LIBRARY</p><h2>Choose the next small step.</h2></div>{topics.map((topic) => <div className="topic-row" key={topic}><h3>{topic}</h3><div>{lessons.filter((lesson) => lesson.topic === topic).map((lesson) => <button key={lesson.slug} onClick={() => onLessonClick(lessons.indexOf(lesson))}>{lesson.title}<span>→</span></button>)}</div></div>)}</section></div>;
 }
 function Stat({ value, label }: { value: string; label: string }) { return <article className="stat"><strong>{value}</strong><span>{label}</span></article>; }
 function Circle({ circle, setCircle }: { circle: boolean; setCircle: (value: boolean) => void }) { return <div className="circle-view"><section><p className="eyebrow">INVITE-ONLY · NO SCORES SHARED</p><h2>{circle ? "Even small circles make a difference." : "You don’t have to study alone."}</h2><p>Share a little encouragement with people you already know. Your answers, scores, and study history always stay private.</p>{circle ? <div className="invite"><b>Weekday Maths Circle</b><span>Invite link ready · expires in 7 days</span><code>iwe.africa/join/learn-8F2P</code><button className="secondary">Copy private invite</button></div> : <button className="primary" onClick={() => setCircle(true)}>Create a private study circle <span>→</span></button>}</section><aside className="circle-rules"><b>What your circle sees</b><p>• Your chosen name</p><p>• Whether you completed today</p><b>What stays yours</b><p>• Your answers and scores</p><p>• Your streak and lesson history</p></aside></div>; }

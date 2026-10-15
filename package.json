@@ -1,0 +1,36 @@
+{
+  "name": "iwe-africa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:push": "prisma db push",
+    "worker": "tsx worker/index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "better-auth": "^1.6.23",
+    "next": "^16.1.6",
+    "pg": "^8.16.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.4",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

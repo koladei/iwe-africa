@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Channel {
+  TELEGRAM
+  WHATSAPP
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Learner {
+  id              String              @id @default(cuid())
+  userId          String              @unique
+  displayName     String
+  ageConfirmedAt  DateTime
+  timezone        String              @default("Africa/Lagos")
+  reminderTime    String              @default("18:00")
+  currentStreak   Int                 @default(0)
+  longestStreak   Int                 @default(0)
+  lastCompletedOn DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  identities      ChannelIdentity[]
+  completions     LessonCompletion[]
+  attempts        QuizAttempt[]
+  memberships     CircleMembership[]
+  invites         CircleInvite[]      @relation("InviteCreator")
+  deliveries      MessageDelivery[]
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  learner       Learner?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                   String    @id
+  accountId            String
+  providerId           String
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken          String?
+  refreshToken         String?
+  idToken              String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                String?
+  password             String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model ChannelIdentity {
+  id        String   @id @default(cuid())
+  learnerId String
+  channel   Channel
+  channelId String
+  createdAt DateTime @default(now())
+  learner   Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([channel, channelId])
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String
+  lessons     Lesson[]
+}
+
+model Lesson {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  topicId     String
+  title       String
+  conceptBite String
+  sourceTitle String
+  sourceUrl   String
+  audioUrl    String?
+  order       Int
+  createdAt   DateTime       @default(now())
+  topic       Topic          @relation(fields: [topicId], references: [id])
+  questions   Question[]
+  completions LessonCompletion[]
+
+  @@unique([topicId, order])
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  lessonId    String
+  prompt      String
+  explanation String
+  order       Int
+  lesson      Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  options     QuestionOption[]
+  attempts    QuizAttempt[]
+
+  @@unique([lessonId, order])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  label      String
+  isCorrect  Boolean  @default(false)
+  order      Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, order])
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  learnerId  String
+  questionId String
+  optionId   String
+  isCorrect  Boolean
+  createdAt  DateTime @default(now())
+  learner    Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model LessonCompletion {
+  id          String   @id @default(cuid())
+  learnerId   String
+  lessonId    String
+  completedOn DateTime
+  score       Int
+  createdAt   DateTime @default(now())
+  learner     Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, lessonId])
+}
+
+model Circle {
+  id          String             @id @default(cuid())
+  name        String
+  createdAt   DateTime           @default(now())
+  memberships CircleMembership[]
+  invites     CircleInvite[]
+}
+
+model CircleMembership {
+  id        String   @id @default(cuid())
+  circleId  String
+  learnerId String
+  joinedAt  DateTime @default(now())
+  circle    Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  learner   Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, learnerId])
+}
+
+model CircleInvite {
+  id        String   @id @default(cuid())
+  circleId  String
+  creatorId String
+  token     String   @unique
+  expiresAt DateTime
+  maxUses   Int      @default(3)
+  uses      Int      @default(0)
+  createdAt DateTime @default(now())
+  circle    Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  creator   Learner  @relation("InviteCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+}
+
+model MessageDelivery {
+  id          String         @id @default(cuid())
+  learnerId   String
+  channel     Channel
+  messageType String
+  dueAt       DateTime
+  status      DeliveryStatus @default(PENDING)
+  providerId  String?
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime       @default(now())
+  learner     Learner        @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, channel, messageType, dueAt])
+}

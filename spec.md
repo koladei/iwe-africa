@@ -110,7 +110,7 @@ Caddy ─────────────── HTTPS ingress and reverse pr
 
 Provider values are bootstrapped from environment variables once, then retrieved from encrypted database settings. `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `CONFIG_ENCRYPTION_KEY` remain deployment-level environment variables.
 
-`npm run authorization:bootstrap` seeds the privilege catalogue and promotes configured bootstrap email accounts. The protected `/api/admin/configuration` endpoint requires configuration privileges and returns only configured/not-configured state.
+`npm run authorization:bootstrap` seeds the privilege catalogue and promotes configured bootstrap email accounts. Provider values are entered through the protected `/api/admin/configuration` endpoint, which requires configuration privileges and returns only configured/not-configured state.
 
 ## 6. MVP scope and exclusions
 

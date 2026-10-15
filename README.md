@@ -32,7 +32,7 @@ cp .env.example .env
 
 Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `APP_URL`, and `CONFIG_ENCRYPTION_KEY`. For local development, `BETTER_AUTH_URL` and `APP_URL` should match the URL printed by `npm run dev`—for example, `http://localhost:3000`.
 
-Create separate secure values with `openssl rand -base64 32` for `BETTER_AUTH_SECRET` and `CONFIG_ENCRYPTION_KEY`. Set `CONFIG_ADMIN_EMAILS` to the email address allowed to update provider settings through the protected API.
+Create separate secure values with `openssl rand -base64 32` for `BETTER_AUTH_SECRET` and `CONFIG_ENCRYPTION_KEY`. `CONFIG_ENCRYPTION_KEY` is a durable deployment secret: it encrypts provider settings in the database, so do not rotate or remove it after values have been stored. Make the same value available to both the app and reminder worker. Set `CONFIG_ADMIN_EMAILS` to the email address allowed to update provider settings through the protected API.
 
 ### 2. Start a database
 
@@ -56,11 +56,10 @@ postgresql://iwe:your-postgres-password@localhost:5432/iwe?schema=public
 npm install
 npm run db:push
 npm run db:seed
-npm run configuration:bootstrap
 npm run authorization:bootstrap
 ```
 
-`db:push` is intentionally used for this competition prototype. `configuration:bootstrap` copies non-empty provider values from `.env` into encrypted database settings only when that key is not already stored; it never overwrites a database value. Use versioned migrations before treating the deployment as long-lived production infrastructure.
+`db:push` is intentionally used for this competition prototype. Configure messaging and AI credentials through the protected `/admin` portal after an administrator account has been granted access. Use versioned migrations before treating the deployment as long-lived production infrastructure.
 
 ### 4. Run the application
 
@@ -79,17 +78,16 @@ Open the printed local URL. Use `/dashboard` for the interactive visual demo, or
 | `npm run test` | Run unit tests. |
 | `npm run db:push` | Synchronize PostgreSQL with Prisma schema. |
 | `npm run db:seed` | Add the 12 Iwe lesson bites and questions. |
-| `npm run configuration:bootstrap` | Copy initial provider values from `.env` into encrypted database settings. |
 | `npm run authorization:bootstrap` | Seed privileges and promote matching `CONFIG_ADMIN_EMAILS` accounts to Platform Administrator. |
 | `npm run worker` | Run one reminder-worker pass. |
 
 ## Configure chat channels
 
-The application reads provider settings from PostgreSQL, with an encrypted Redis cache in production. Environment variables are bootstrap inputs only; after setting them, run `npm run configuration:bootstrap`. Run `npm run authorization:bootstrap` after an allowlisted staff account has registered. It grants the protected Platform Administrator role once and never removes later assignments. The `/admin` portal uses a union of role and direct privileges for settings, content, and access management; settings endpoints never return stored secrets.
+The application reads provider settings from PostgreSQL, with an encrypted Redis cache in production. Add or rotate these values through the protected `/admin` portal; they are never kept in `.env`. Run `npm run authorization:bootstrap` after an allowlisted staff account has registered. It grants the protected Platform Administrator role once and never removes later assignments. The `/admin` portal uses a union of role and direct privileges for settings, content, and access management; settings endpoints never return stored secrets.
 
-- **Telegram:** set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, then register `https://your-domain/api/webhooks/telegram` as the bot webhook with the same secret token. `/start`, `/learn`, and `/progress` are supported.
-- **WhatsApp:** set `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, and `WHATSAPP_APP_SECRET`. Subscribe Meta to `https://your-domain/api/webhooks/whatsapp`. Set `WHATSAPP_REMINDER_TEMPLATE` to an approved template name for scheduled reminders.
-- **OpenAI:** optionally set `OPENAI_API_KEY` and `OPENAI_MODEL`. Without them, Iwe returns the source-grounded curated explanation.
+- **Telegram:** in **Admin → Settings → Telegram**, store `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, then register `https://your-domain/api/webhooks/telegram` as the bot webhook with the same secret token. `/start`, `/learn`, and `/progress` are supported.
+- **WhatsApp:** in **Admin → Settings → WhatsApp**, store `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, and `WHATSAPP_APP_SECRET`. Subscribe Meta to `https://your-domain/api/webhooks/whatsapp`. Store `WHATSAPP_REMINDER_TEMPLATE` when an approved reminder template is available.
+- **OpenAI:** in **Admin → Settings → OpenAI**, optionally store `OPENAI_API_KEY` and `OPENAI_MODEL`. Without them, Iwe returns the source-grounded curated explanation.
 
 See [docs/integrations.md](docs/integrations.md) for the webhook checklist and safe test procedure.
 
@@ -103,7 +101,6 @@ See [docs/integrations.md](docs/integrations.md) for the webhook checklist and s
    docker compose up -d --build
    docker compose exec app npx prisma db push
    docker compose exec app npm run db:seed
-   docker compose exec app npm run configuration:bootstrap
    docker compose exec app npm run authorization:bootstrap
    ```
 

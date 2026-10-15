@@ -72,15 +72,6 @@ export async function setConfiguration(key: ConfigurationKey, value: string) {
   await cache?.del(cacheKey);
 }
 
-export async function bootstrapConfigurationFromEnvironment() {
-  for (const key of configurationKeys) {
-    const value = process.env[key];
-    if (!value) continue;
-    const existing = await prisma.applicationSetting.findUnique({ where: { key } });
-    if (!existing) await setConfiguration(key, value);
-  }
-}
-
 export function isConfigurationKey(value: string): value is ConfigurationKey {
   return (configurationKeys as readonly string[]).includes(value);
 }

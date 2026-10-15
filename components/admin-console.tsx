@@ -8,6 +8,72 @@ type Role = { id: string; slug: string; name: string; description: string; isBui
 type Topic = { id: string; title: string };
 type User = { id: string; name: string; email: string; roleMemberships: { role: { id: string; name: string } }[]; directPrivileges: { privilege: Privilege }[]; effectivePrivileges: string[] };
 
+type ProviderId = "whatsapp" | "telegram" | "openai";
+type SettingDefinition = { key: string; label: string; help: string; secret?: boolean; optional?: boolean; placeholder: string };
+type ProviderDefinition = { id: ProviderId; eyebrow: string; title: string; description: string; settings: SettingDefinition[]; setup: { title: string; detail: string; items: { label: string; value: string }[] } };
+
+const providerConfiguration: ProviderDefinition[] = [
+  {
+    id: "whatsapp",
+    eyebrow: "WHATSAPP CLOUD API",
+    title: "WhatsApp credentials & webhooks",
+    description: "Set the credentials Iwe needs to verify incoming messages and deliver learning reminders through WhatsApp.",
+    settings: [
+      { key: "WHATSAPP_PHONE_NUMBER_ID", label: "Phone number ID", help: "Find this in Meta Developer Console → WhatsApp → API Setup.", placeholder: "Paste the phone number ID" },
+      { key: "WHATSAPP_ACCESS_TOKEN", label: "Permanent access token", help: "Use a Meta system-user token with WhatsApp messaging permissions.", secret: true, placeholder: "Paste a new access token" },
+      { key: "WHATSAPP_VERIFY_TOKEN", label: "Webhook verify token", help: "Use the same private token when completing Meta’s webhook verification.", secret: true, placeholder: "Enter a verification token" },
+      { key: "WHATSAPP_APP_SECRET", label: "Meta app secret", help: "Used only to validate signed webhook requests from Meta.", secret: true, placeholder: "Paste the app secret" },
+      { key: "WHATSAPP_REMINDER_TEMPLATE", label: "Reminder template name", help: "The exact name of an approved WhatsApp template for scheduled reminders.", optional: true, placeholder: "For example: daily_study_reminder" },
+    ],
+    setup: {
+      title: "Meta webhook setup",
+      detail: "Copy these details into Meta Developer Console → WhatsApp → Configuration.",
+      items: [
+        { label: "Callback URL", value: "https://iwe.cradlesoft.tech/api/webhooks/whatsapp" },
+        { label: "Verification", value: "Use the webhook verify token stored above" },
+        { label: "Subscription fields", value: "Subscribe to messages" },
+      ],
+    },
+  },
+  {
+    id: "telegram",
+    eyebrow: "TELEGRAM BOT API",
+    title: "Telegram bot connection",
+    description: "Connect Iwe to Telegram with a bot token and a private secret for validating webhook deliveries.",
+    settings: [
+      { key: "TELEGRAM_BOT_TOKEN", label: "Bot token", help: "Create or retrieve this token from BotFather. It is used to send Iwe messages.", secret: true, placeholder: "Paste a new bot token" },
+      { key: "TELEGRAM_WEBHOOK_SECRET", label: "Webhook secret", help: "A private value Telegram includes with each webhook request for Iwe to verify.", secret: true, placeholder: "Enter a webhook secret" },
+    ],
+    setup: {
+      title: "Telegram webhook setup",
+      detail: "Register this endpoint as the bot webhook and supply the same secret token stored above.",
+      items: [
+        { label: "Webhook URL", value: "https://iwe.cradlesoft.tech/api/webhooks/telegram" },
+        { label: "Secret token", value: "Use the webhook secret stored above" },
+        { label: "Quick check", value: "Send /start in a private test chat" },
+      ],
+    },
+  },
+  {
+    id: "openai",
+    eyebrow: "AI EXPLANATIONS",
+    title: "OpenAI explanation fallback",
+    description: "Optionally configure concise, lesson-grounded explanations. Iwe keeps its curated explanation available if this service is unavailable.",
+    settings: [
+      { key: "OPENAI_API_KEY", label: "API key", help: "Used server-side only when a learner asks for an explanation in a different way.", secret: true, placeholder: "Paste a new API key" },
+      { key: "OPENAI_MODEL", label: "Model", help: "Optional. Leave this unset to use Iwe’s default explanation model.", optional: true, placeholder: "For example: gpt-4o-mini" },
+    ],
+    setup: {
+      title: "How explanations stay private",
+      detail: "Iwe sends only the current lesson, question, answer rationale, and source metadata to the model.",
+      items: [
+        { label: "Never sent", value: "Names, contact details, or unrelated learner history" },
+        { label: "Fallback", value: "The curated lesson explanation remains available" },
+      ],
+    },
+  },
+];
+
 const can = (grants: string[], privilege: string) => grants.includes(privilege);
 
 export function AdminConsole({ name, effectivePrivileges }: { name: string; effectivePrivileges: string[] }) {
@@ -60,9 +126,60 @@ function ContentPanel({ grants, lessons, topics, refresh, say }: any) {
 }
 
 function SettingsPanel({ grants, settings, refresh, say }: any) {
-  const [key, setKey] = useState(""); const [value, setValue] = useState("");
-  async function save(event: FormEvent) { event.preventDefault(); const response = await fetch("/api/admin/configuration", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, value }) }); say(response.ok ? "Configuration value stored securely." : (await response.json()).error ?? "Unable to save setting."); if (response.ok) { setValue(""); await refresh(); } }
-  return <section className="admin-panel"><h2>Provider settings</h2><p>Saved secrets are encrypted and cannot be displayed again. Replace a value when it needs to change.</p><div className="setting-grid">{Object.entries(settings).map(([name, configured]) => <p key={name}><b>{name}</b><span className={configured ? "configured" : "not-configured"}>{configured ? "Configured" : "Not configured"}</span></p>)}</div>{can(grants, "configuration.update") && <form className="admin-form" onSubmit={save}><label>Setting<select value={key} onChange={(event) => setKey(event.target.value)} required><option value="">Choose a setting</option>{Object.keys(settings).map((setting) => <option key={setting}>{setting}</option>)}</select></label><label>Replacement value<input value={value} onChange={(event) => setValue(event.target.value)} required /></label><button className="primary">Store replacement</button></form>}</section>;
+  const [providerId, setProviderId] = useState<ProviderId>("whatsapp");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const provider = providerConfiguration.find((entry) => entry.id === providerId) ?? providerConfiguration[0];
+  const configuredCount = Object.values(settings).filter(Boolean).length;
+  const totalCount = Object.keys(settings).length;
+  const canUpdate = can(grants, "configuration.update");
+
+  async function save(event: FormEvent<HTMLFormElement>, key: string) {
+    event.preventDefault();
+    const value = values[key]?.trim();
+    if (!value) return;
+    setSavingKey(key);
+    try {
+      const response = await fetch("/api/admin/configuration", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, value }) });
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      say(response.ok ? `${provider.settings.find((setting) => setting.key === key)?.label ?? "Configuration value"} stored securely.` : body?.error ?? "Unable to save setting.");
+      if (response.ok) {
+        setValues((current) => ({ ...current, [key]: "" }));
+        await refresh();
+      }
+    } catch {
+      say("Unable to reach the server. Check the deployment and try again.");
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  return <section className="configuration-panel">
+    <header className="configuration-header">
+      <div><p className="eyebrow">ENCRYPTED PROVIDER SETTINGS</p><h2>Configuration center</h2><p>Organize credentials by service, see what is ready, and replace values without exposing anything already stored.</p></div>
+      <div className="configuration-progress" aria-label={`${configuredCount} of ${totalCount} settings configured`}><span>{configuredCount}/{totalCount}</span><small>settings ready</small></div>
+    </header>
+    <div className="configuration-security"><span aria-hidden="true">●</span><p><b>Stored securely.</b> Provider values are encrypted at rest and are never displayed in this portal after saving.</p><em>Server-side only</em></div>
+    <div className="provider-tabs" role="tablist" aria-label="Provider configuration">
+      {providerConfiguration.map((entry) => {
+        const ready = entry.settings.filter((setting) => settings[setting.key]).length;
+        return <button key={entry.id} type="button" role="tab" aria-selected={providerId === entry.id} className={providerId === entry.id ? "active" : ""} onClick={() => setProviderId(entry.id)}><span>{entry.title.replace(" credentials & webhooks", "").replace(" connection", "").replace(" explanation fallback", "")}</span><small>{ready}/{entry.settings.length} ready</small></button>;
+      })}
+    </div>
+    <div className="provider-layout">
+      <section className="provider-credentials" aria-labelledby={`${provider.id}-title`}>
+        <div className="provider-heading"><div><p className="eyebrow">{provider.eyebrow}</p><h3 id={`${provider.id}-title`}>{provider.title}</h3><p>{provider.description}</p></div><span className={provider.settings.every((setting) => setting.optional || settings[setting.key]) ? "provider-state ready" : "provider-state"}>{provider.settings.filter((setting) => settings[setting.key]).length} of {provider.settings.length} stored</span></div>
+        <div className="provider-fields">
+          {provider.settings.map((setting) => <form className="configuration-field" key={setting.key} onSubmit={(event) => void save(event, setting.key)}>
+            <label htmlFor={setting.key}><span><b>{setting.label}{!setting.optional && <i>Required</i>}</b><small>{setting.help}</small></span><span className={settings[setting.key] ? "configured" : "not-configured"}>{settings[setting.key] ? "Configured" : "Not configured"}</span></label>
+            {canUpdate && <div className="configuration-input"><input id={setting.key} type={setting.secret ? "password" : "text"} autoComplete="off" value={values[setting.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [setting.key]: event.target.value }))} placeholder={settings[setting.key] ? `Replace: ${setting.placeholder}` : setting.placeholder} required /><button className="secondary" disabled={savingKey === setting.key}>{savingKey === setting.key ? "Saving…" : settings[setting.key] ? "Replace" : "Save"}</button></div>}
+          </form>)}
+        </div>
+        {!canUpdate && <p className="configuration-read-only">You can view configuration status. Ask a staff member with configuration-update access to replace a value.</p>}
+      </section>
+      <aside className="provider-setup"><p className="eyebrow">SETUP NOTES</p><h3>{provider.setup.title}</h3><p>{provider.setup.detail}</p><dl>{provider.setup.items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></aside>
+    </div>
+  </section>;
 }
 
 function AccessPanel({ grants, roles, catalogue, users, refresh, say }: any) {

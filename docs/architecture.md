@@ -35,7 +35,7 @@ All circle views must expose only display names and daily completion state. Quiz
 
 `ApplicationSetting` stores OpenAI, Telegram, and WhatsApp values encrypted with `CONFIG_ENCRYPTION_KEY`; Redis caches the encrypted database snapshot for five minutes. The application decrypts values only in server memory immediately before an outbound provider call or webhook verification. The browser and health endpoint never receive secret values.
 
-Initial values are copied with `npm run configuration:bootstrap`. Existing stored values win over environment values. `CONFIG_ADMIN_EMAILS` is only a one-way bootstrap allowlist for the Platform Administrator role; `/api/admin/configuration` is protected by the configuration privileges defined in `lib/authorization.ts` and returns only configured/not-configured state.
+Provider values are created and rotated through `/api/admin/configuration`, which is protected by the configuration privileges defined in `lib/authorization.ts` and returns only configured/not-configured state. `CONFIG_ADMIN_EMAILS` is only a one-way bootstrap allowlist for the Platform Administrator role.
 
 ## Staff authorization
 

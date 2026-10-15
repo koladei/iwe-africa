@@ -13,7 +13,7 @@ Use this skill for Iwe product, dashboard, database, authentication, curriculum,
 - Review `docs/content.md` before changing seed lessons or adding curriculum content.
 - `app/dashboard` is a public, browser-local demo. `/app` is the authenticated learner route. Do not represent demo-only UI state as persisted progress.
 - Better Auth owns `User`, `Session`, `Account`, and `Verification`; Iwe-specific learner data belongs under `Learner` and related Prisma models.
-- Provider settings belong in encrypted `ApplicationSetting` records and are cached through `lib/configuration.ts`; keep `DATABASE_URL`, authentication secrets, and the configuration encryption key as deployment-only environment variables.
+- Provider settings belong in encrypted `ApplicationSetting` records and are cached through `lib/configuration.ts`; enter or rotate them through the protected admin portal. Keep only `DATABASE_URL`, authentication secrets, and the configuration encryption key as deployment-only environment variables.
 - Staff access is resolved by `lib/authorization.ts` from all role memberships plus direct grants. Use a specific privilege check for every protected action; `CONFIG_ADMIN_EMAILS` only bootstraps the Platform Administrator role.
 
 ## Product invariants

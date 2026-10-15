@@ -13,7 +13,7 @@ async function deliverDueReminders() {
       try {
         const delivery = await prisma.messageDelivery.create({ data: { learnerId: learner.id, channel: identity.channel, messageType: "DAILY_REMINDER", dueAt: now } });
         const provider = identity.channel === Channel.TELEGRAM ? telegramProvider : whatsAppProvider;
-        const providerId = await provider.sendReminder({ recipientId: identity.channelId, text: `${todayLessonMessage()}\n\nReply LEARN to begin.` });
+        const providerId = await provider.sendReminder({ recipientId: identity.channelId, text: `${await todayLessonMessage()}\n\nReply LEARN to begin.` });
         await prisma.messageDelivery.update({ where: { id: delivery.id }, data: { status: DeliveryStatus.SENT, providerId, sentAt: new Date() } });
       } catch (error) {
         console.error(JSON.stringify({ event: "reminder_delivery_failed", learnerId: learner.id, channel: identity.channel, error: error instanceof Error ? error.message : "unknown" }));

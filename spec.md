@@ -23,7 +23,7 @@ The solution addresses both access/discovery and sustained engagement. It intent
 | Learner (13+) | Study a relevant topic with little data and little time. | Text-first five-minute lesson bites, optional audio, and short quizzes. |
 | Learner in a study circle | Stay accountable without exposing performance. | Private invite-only circles that show only display name and completion state. |
 | Competition reviewer | See a credible, locally relevant proof of concept. | A web demo, verified curriculum references, messaging integration readiness, and an observable daily loop. |
-| Platform administrator | Configure providers without rebuilding the application. | Encrypted database configuration, Redis caching, bootstrap tooling, and a protected settings API. |
+| Iwe staff member | Manage only the operational work assigned to them. | Privilege-based access, reusable roles, direct grants, and an audited administration portal. |
 
 ## 3. Functional requirements
 
@@ -70,8 +70,18 @@ The solution addresses both access/discovery and sustained engagement. It intent
 - Persist provider configuration in encrypted PostgreSQL records.
 - Cache encrypted configuration snapshots in Redis when `REDIS_URL` is configured.
 - Never expose stored secret values in browser responses, logs, health checks, or documentation.
-- Allow listed administrators to view configured/not-configured state and replace a configuration value through `/api/admin/configuration`.
+- Allow authorized staff to view configured/not-configured state and replace a configuration value through `/api/admin/configuration`.
 - Support Docker Compose deployment with Next.js, PostgreSQL, Redis, a reminder worker, and Caddy.
+
+### Administration and authorization
+
+- Use a code-defined privilege catalogue. Privileges are positive grants only; there are no explicit deny rules.
+- Resolve effective user access as the unique union of privileges inherited through every assigned role and directly assigned user privileges.
+- Seed protected built-in roles: Platform Administrator, Content Editor, and Access Administrator. Authorized staff may create custom roles from supported privileges.
+- Use `CONFIG_ADMIN_EMAILS` only to bootstrap matching existing accounts into the Platform Administrator role. It never removes existing role memberships.
+- Require a specific server-side privilege for every administration API or server action. Browser navigation is not authorization.
+- Keep an authorization audit trail containing only the actor, action, affected role/user identifier, subject identifier, and timestamp. Never log provider values, learner progress, quiz data, or secrets.
+- Preserve at least one user with role-assignment access. Built-in roles are protected from alteration or deletion.
 
 ## 4. Non-functional requirements
 
@@ -100,6 +110,8 @@ Caddy ─────────────── HTTPS ingress and reverse pr
 
 Provider values are bootstrapped from environment variables once, then retrieved from encrypted database settings. `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `CONFIG_ENCRYPTION_KEY` remain deployment-level environment variables.
 
+`npm run authorization:bootstrap` seeds the privilege catalogue and promotes configured bootstrap email accounts. The protected `/api/admin/configuration` endpoint requires configuration privileges and returns only configured/not-configured state.
+
 ## 6. MVP scope and exclusions
 
 Included in this MVP:
@@ -110,6 +122,7 @@ Included in this MVP:
 - Telegram and WhatsApp integration endpoints.
 - OpenAI fallback architecture.
 - Private-circle API and invitation flow.
+- Integrated `/admin` portal for content, encrypted provider-setting status/replacement, custom roles, memberships, and direct privilege grants.
 
 Explicitly excluded for now:
 
@@ -131,12 +144,12 @@ The MVP is ready for a competition demonstration when:
 5. The Telegram webhook can return a daily bite to a test chat after provider configuration is stored.
 6. The WhatsApp webhook passes Meta verification and validates signed test payloads after approval/configuration.
 7. Provider secrets are encrypted in PostgreSQL and the encrypted snapshot is cached in Redis.
-8. `npm run test` and `npm run build` pass.
+8. Access is the unique union of role and direct privilege grants; users without a required privilege cannot call the protected API.
+9. `npm run test` and `npm run build` pass.
 
 ## 8. Deferred work
 
 - Wire the dashboard’s current local demo state to the protected persistence APIs.
-- Add a secured administrator settings screen for the existing API.
 - Add provider-specific integration tests using safe fixtures.
 - Add migration history before a long-lived production rollout.
 - Add multilingual content, carefully curated local-language translations, and non-audio accessibility improvements.

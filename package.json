@@ -11,6 +11,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "authorization:bootstrap": "tsx scripts/bootstrap-authorization.ts",
     "db:push": "prisma db push",
     "configuration:bootstrap": "tsx scripts/bootstrap-configuration.ts",
     "worker": "tsx worker/index.ts"

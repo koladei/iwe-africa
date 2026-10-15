@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!await validWhatsAppSignature(rawBody, request.headers.get("x-hub-signature-256"))) return new Response("Unauthorized", { status: 401 });
   const messages = whatsAppProvider.parseInboundMessage(JSON.parse(rawBody));
   await Promise.all(messages.map(async (message) => {
-    if (["learn", "start", "/learn"].includes(message.text.toLowerCase())) await whatsAppProvider.sendLesson({ recipientId: message.senderId, text: todayLessonMessage() });
+    if (["learn", "start", "/learn"].includes(message.text.toLowerCase())) await whatsAppProvider.sendLesson({ recipientId: message.senderId, text: await todayLessonMessage() });
   }));
   return Response.json({ ok: true });
 }

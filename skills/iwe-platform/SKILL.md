@@ -14,6 +14,7 @@ Use this skill for Iwe product, dashboard, database, authentication, curriculum,
 - `app/dashboard` is a public, browser-local demo. `/app` is the authenticated learner route. Do not represent demo-only UI state as persisted progress.
 - Better Auth owns `User`, `Session`, `Account`, and `Verification`; Iwe-specific learner data belongs under `Learner` and related Prisma models.
 - Provider settings belong in encrypted `ApplicationSetting` records and are cached through `lib/configuration.ts`; keep `DATABASE_URL`, authentication secrets, and the configuration encryption key as deployment-only environment variables.
+- Staff access is resolved by `lib/authorization.ts` from all role memberships plus direct grants. Use a specific privilege check for every protected action; `CONFIG_ADMIN_EMAILS` only bootstraps the Platform Administrator role.
 
 ## Product invariants
 
@@ -29,3 +30,4 @@ Use this skill for Iwe product, dashboard, database, authentication, curriculum,
 3. Run `npx prisma generate`, relevant tests, and `npm run build` after database or route changes. Apply `npm run db:push` only when database mutation is authorized.
 4. When provider configuration changes, update `docs/integrations.md` and preserve the bootstrap-only role of provider environment variables.
 5. Keep `README.md` and the relevant `docs/` guide current when setup, architecture, or behavior changes.
+6. When changing staff access, update the application-defined privilege catalogue and its tests together. Never log secrets or learner data in authorization audits.

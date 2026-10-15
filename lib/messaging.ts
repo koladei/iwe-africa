@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { seedLessons } from "@/lib/lessons";
 import { getConfiguration } from "@/lib/configuration";
+import { prisma } from "@/lib/prisma";
 
 export type InboundMessage = { channel: "TELEGRAM" | "WHATSAPP"; senderId: string; text: string; replyId?: string };
 export type OutboundMessage = { recipientId: string; text: string; buttons?: { id: string; title: string }[] };
@@ -86,7 +86,9 @@ export async function validWhatsAppSignature(rawBody: string, signature: string 
   return received.length === calculated.length && crypto.timingSafeEqual(calculated, received);
 }
 
-export function todayLessonMessage() {
-  const lesson = seedLessons[new Date().getDate() % seedLessons.length];
-  return `Today’s 5-minute bite: ${lesson.title}\n\n${lesson.bite}\n\nSource: ${lesson.sourceTitle}`;
+export async function todayLessonMessage() {
+  const lessons = await prisma.lesson.findMany({ where: { status: "PUBLISHED" }, orderBy: [{ order: "asc" }, { createdAt: "asc" }], select: { title: true, conceptBite: true, sourceTitle: true } });
+  if (!lessons.length) return "Today’s lesson is being prepared. Please check back shortly.";
+  const lesson = lessons[new Date().getDate() % lessons.length];
+  return `Today’s 5-minute bite: ${lesson.title}\n\n${lesson.conceptBite}\n\nSource: ${lesson.sourceTitle}`;
 }

@@ -57,6 +57,7 @@ npm install
 npm run db:push
 npm run db:seed
 npm run configuration:bootstrap
+npm run authorization:bootstrap
 ```
 
 `db:push` is intentionally used for this competition prototype. `configuration:bootstrap` copies non-empty provider values from `.env` into encrypted database settings only when that key is not already stored; it never overwrites a database value. Use versioned migrations before treating the deployment as long-lived production infrastructure.
@@ -79,11 +80,12 @@ Open the printed local URL. Use `/dashboard` for the interactive visual demo, or
 | `npm run db:push` | Synchronize PostgreSQL with Prisma schema. |
 | `npm run db:seed` | Add the 12 Iwe lesson bites and questions. |
 | `npm run configuration:bootstrap` | Copy initial provider values from `.env` into encrypted database settings. |
+| `npm run authorization:bootstrap` | Seed privileges and promote matching `CONFIG_ADMIN_EMAILS` accounts to Platform Administrator. |
 | `npm run worker` | Run one reminder-worker pass. |
 
 ## Configure chat channels
 
-The application reads provider settings from PostgreSQL, with an encrypted Redis cache in production. Environment variables are bootstrap inputs only; after setting them, run `npm run configuration:bootstrap`. The protected `GET`/`PUT /api/admin/configuration` endpoint lets an email in `CONFIG_ADMIN_EMAILS` inspect configured state and replace one value. It never returns stored secrets.
+The application reads provider settings from PostgreSQL, with an encrypted Redis cache in production. Environment variables are bootstrap inputs only; after setting them, run `npm run configuration:bootstrap`. Run `npm run authorization:bootstrap` after an allowlisted staff account has registered. It grants the protected Platform Administrator role once and never removes later assignments. The `/admin` portal uses a union of role and direct privileges for settings, content, and access management; settings endpoints never return stored secrets.
 
 - **Telegram:** set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, then register `https://your-domain/api/webhooks/telegram` as the bot webhook with the same secret token. `/start`, `/learn`, and `/progress` are supported.
 - **WhatsApp:** set `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, and `WHATSAPP_APP_SECRET`. Subscribe Meta to `https://your-domain/api/webhooks/whatsapp`. Set `WHATSAPP_REMINDER_TEMPLATE` to an approved template name for scheduled reminders.
@@ -102,6 +104,7 @@ See [docs/integrations.md](docs/integrations.md) for the webhook checklist and s
    docker compose exec app npx prisma db push
    docker compose exec app npm run db:seed
    docker compose exec app npm run configuration:bootstrap
+   docker compose exec app npm run authorization:bootstrap
    ```
 
 4. Check `https://iwe.cradlesoft.tech/api/health`, then configure Telegram and WhatsApp webhooks.
